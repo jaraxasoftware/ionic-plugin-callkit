@@ -23,8 +23,8 @@
     var providerDelegate: CDVProviderDelegate?
     var callbackId: String?
 
-    func register(_ command:CDVInvokedUrlCommand) {
-        self.commandDelegate.run(inBackground: {
+    func register(command:CDVInvokedUrlCommand) {
+        self.commandDelegate.runInBackground({
             var pluginResult = CDVPluginResult(
                 status : CDVCommandStatus_ERROR
             )
@@ -35,31 +35,28 @@
             
             self.callbackId = command.callbackId
 
-            NotificationCenter.default.addObserver(self, selector: #selector(self.handle(withNotification:)), name: Notification.Name("CDVCallKitCallsChangedNotification"), object: nil)
-            NotificationCenter.default.addObserver(self, selector: #selector(self.handle(withNotification:)), name: Notification.Name("CDVCallKitAudioNotification"), object: nil)
+            NSNotificationCenter.defaultCenter().addObserver(self, selector: #selector(self.handle(withNotification:)), name: "CDVCallKitCallsChangedNotification", object: nil)
+            NSNotificationCenter.defaultCenter().addObserver(self, selector: #selector(self.handle(withNotification:)), name: "CDVCallKitAudioNotification", object: nil)
 
             pluginResult = CDVPluginResult(
                 status: CDVCommandStatus_OK
             )
-            pluginResult?.setKeepCallbackAs(true)
+            pluginResult?.setKeepCallbackAsBool(true)
             
-            self.commandDelegate!.send(
-                pluginResult,
-                callbackId: command.callbackId
-            )
+            self.commandDelegate!.sendPluginResult(pluginResult, callbackId: command.callbackId)
         });
     }
 
     deinit {
-        NotificationCenter.default.removeObserver(self)
+        NSNotificationCenter.defaultCenter().removeObserver(self)
     }
 
-    func reportIncomingCall(_ command:CDVInvokedUrlCommand) {
+    func reportIncomingCall(command:CDVInvokedUrlCommand) {
         var pluginResult = CDVPluginResult(
             status : CDVCommandStatus_ERROR
         )
         
-        let uuid = UUID()
+        let uuid = NSUUID()
         let name = command.arguments[0] as? String ?? ""
         let hasVideo = command.arguments[1] as? Bool ?? false
         let supportsGroup = command.arguments[2] as? Bool ?? false
@@ -71,17 +68,14 @@
         
         pluginResult = CDVPluginResult(
             status: CDVCommandStatus_OK,
-            messageAs : uuid.uuidString
+            messageAsString: uuid.UUIDString
         )
-        pluginResult?.setKeepCallbackAs(false)
+        pluginResult?.setKeepCallbackAsBool(false)
 
-        self.commandDelegate!.send(
-            pluginResult,
-            callbackId: command.callbackId
-        )
+        self.commandDelegate!.sendPluginResult(pluginResult, callbackId: command.callbackId)
     }
 
-    func startCall(_ command:CDVInvokedUrlCommand) {
+    func startCall(command:CDVInvokedUrlCommand) {
         var pluginResult = CDVPluginResult(
             status : CDVCommandStatus_ERROR
         )
@@ -89,37 +83,31 @@
         let name = command.arguments[0] as? String ?? ""
         let isVideo = (command.arguments[1] as! Bool)
         
-        let uuid = UUID()
+        let uuid = NSUUID()
         self.callManager?.startCall(uuid, handle: name, video: isVideo)
         
         pluginResult = CDVPluginResult(
             status: CDVCommandStatus_OK,
-            messageAs : uuid.uuidString
+            messageAsString : uuid.UUIDString
         )
-        pluginResult?.setKeepCallbackAs(false)
+        pluginResult?.setKeepCallbackAsBool(false)
         
-        self.commandDelegate!.send(
-            pluginResult,
-            callbackId: command.callbackId
-        )
+        self.commandDelegate!.sendPluginResult(pluginResult, callbackId: command.callbackId)
     }
 
-    func finishRing(_ command:CDVInvokedUrlCommand) {
-        var pluginResult = CDVPluginResult(
+    func finishRing(command:CDVInvokedUrlCommand) {
+        let pluginResult = CDVPluginResult(
             status : CDVCommandStatus_OK
         )
 
-        pluginResult?.setKeepCallbackAs(false)
-        self.commandDelegate!.send(
-            pluginResult,
-            callbackId: command.callbackId
-        )
+        pluginResult?.setKeepCallbackAsBool(false)
+        self.commandDelegate!.sendPluginResult(pluginResult, callbackId: command.callbackId)
         /* does nothing on iOS */
     }
 
-    func endCall(_ command:CDVInvokedUrlCommand) {
-        self.commandDelegate.run(inBackground: {
-            let uuid = UUID(uuidString: command.arguments[0] as? String ?? "")
+    func endCall(command:CDVInvokedUrlCommand) {
+        self.commandDelegate.runInBackground({
+            let uuid = NSUUID(UUIDString: command.arguments[0] as? String ?? "")
             
             if (uuid != nil) {
                 let call = self.callManager?.callWithUUID(uuid!)
@@ -131,9 +119,9 @@
         });
     }
     
-    func callConnected(_ command:CDVInvokedUrlCommand) {
-        self.commandDelegate.run(inBackground: {
-            let uuid = UUID(uuidString: command.arguments[0] as? String ?? "")
+    func callConnected(command:CDVInvokedUrlCommand) {
+        self.commandDelegate.runInBackground({
+            let uuid = NSUUID(UUIDString: command.arguments[0] as? String ?? "")
             
             if (uuid != nil) {
                 let call = self.callManager?.callWithUUID(uuid!)
@@ -146,9 +134,9 @@
     }
     
     @objc func handle(withNotification notification : NSNotification) {
-        if (notification.name == Notification.Name("CDVCallKitCallsChangedNotification")) {
+        if (notification.name == "CDVCallKitCallsChangedNotification") {
             let notificationObject = notification.object as? CDVCallManager
-            var resultMessage = [String: Any]()
+            var resultMessage = [String: AnyObject]()
             
             if (((notificationObject?.calls) != nil) && (notificationObject!.calls.count>0)) {
                 let call = (notificationObject?.calls[0])! as CDVCall
@@ -167,21 +155,17 @@
                     "duration" : call.duration as Double
                 ]
             }
-            let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: resultMessage)
-            pluginResult?.setKeepCallbackAs(true)
+            let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAsDictionary: resultMessage)
+            pluginResult?.setKeepCallbackAsBool(true)
 
             print("RECEIVED CALL CHANGED NOTIFICATION: \(notification)")
             
-            self.commandDelegate!.send(
-                pluginResult, callbackId: self.callbackId
-            )
-        } else if (notification.name == Notification.Name("CDVCallKitAudioNotification")) {
-            let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: [ "callbackType" : "audioSystem", "message" : notification.object as? String ?? "" ])
-            pluginResult?.setKeepCallbackAs(true)
+            self.commandDelegate!.sendPluginResult(pluginResult, callbackId: self.callbackId)
+        } else if (notification.name == "CDVCallKitAudioNotification") {
+            let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAsDictionary: [ "callbackType" : "audioSystem", "message" : notification.object as? String ?? "" ])
+            pluginResult?.setKeepCallbackAsBool(true)
 
-            self.commandDelegate!.send(
-                pluginResult, callbackId: self.callbackId
-            )
+            self.commandDelegate!.sendPluginResult(pluginResult, callbackId: self.callbackId)
 
             print("RECEIVED AUDIO NOTIFICATION: \(notification)")
         } else {

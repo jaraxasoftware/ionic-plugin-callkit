@@ -12,11 +12,11 @@ final class CDVCallManager: NSObject {
     
     // MARK: Actions
     
-    func startCall(_ uuid: UUID, handle: String, video: Bool = false) {
-        let handle = CXHandle(type: .generic, value: handle)
-        let startCallAction = CXStartCallAction(call: uuid, handle: handle)
+    func startCall(uuid: NSUUID, handle: String, video: Bool = false) {
+        let handle = CXHandle(type: .Generic, value: handle)
+        let startCallAction = CXStartCallAction(callUUID: uuid, handle: handle)
         
-        startCallAction.isVideo = video
+        startCallAction.video = video
         
         let transaction = CXTransaction()
         transaction.addAction(startCallAction)
@@ -24,46 +24,46 @@ final class CDVCallManager: NSObject {
         requestTransaction(transaction)
     }
     
-    func end(_ call: CDVCall) {
-        let endCallAction = CXEndCallAction(call: call.uuid)
+    func end(call: CDVCall) {
+        let endCallAction = CXEndCallAction(callUUID: call.uuid)
         let transaction = CXTransaction()
         transaction.addAction(endCallAction)
         
         requestTransaction(transaction)
     }
     
-    func setHeld(_ call: CDVCall, onHold: Bool) {
-        let setHeldCallAction = CXSetHeldCallAction(call: call.uuid, onHold: onHold)
+    func setHeld(call: CDVCall, onHold: Bool) {
+        let setHeldCallAction = CXSetHeldCallAction(callUUID: call.uuid, onHold: onHold)
         let transaction = CXTransaction()
         transaction.addAction(setHeldCallAction)
         
         requestTransaction(transaction)
     }
     
-    fileprivate func requestTransaction(_ transaction: CXTransaction) {
-        callController.request(transaction) { error in
+    private func requestTransaction(transaction: CXTransaction) {
+        callController.requestTransaction(transaction, completion: { error in
             if let error = error {
                 print("Error requesting transaction: \(error)")
             } else {
                 print("Requested transaction successfully")
             }
-        }
+        })
     }
     
     // MARK: Call Management
     
-    static let CallsChangedNotification = Notification.Name("CDVCallKitCallsChangedNotification")
+    static let CallsChangedNotification = "CDVCallKitCallsChangedNotification"
     
-    fileprivate(set) var calls = [CDVCall]()
+    private(set) var calls = [CDVCall]()
     
-    func callWithUUID(_ uuid: UUID) -> CDVCall? {
-        guard let index = calls.index(where: { $0.uuid == uuid }) else {
+    func callWithUUID(uuid: NSUUID) -> CDVCall? {
+        guard let index = calls.indexOf({ $0.uuid == uuid }) else {
             return nil
         }
         return calls[index]
     }
     
-    func addCall(_ call: CDVCall) {
+    func addCall(call: CDVCall) {
         calls.append(call)
         
         call.stateDidChange = { [weak self] in
@@ -73,7 +73,7 @@ final class CDVCallManager: NSObject {
         postCallsChangedNotification()
     }
     
-    func removeCall(_ call: CDVCall) {
+    func removeCall(call: CDVCall) {
         calls.removeFirst(where: { $0 === call })
         postCallsChangedNotification()
     }
@@ -83,13 +83,13 @@ final class CDVCallManager: NSObject {
         postCallsChangedNotification()
     }
     
-    fileprivate func postCallsChangedNotification() {
-        NotificationCenter.default.post(name: type(of: self).CallsChangedNotification, object: self)
+    private func postCallsChangedNotification() {
+        NSNotificationCenter.defaultCenter().postNotificationName(self.dynamicType.CallsChangedNotification, object: self)
     }
     
     // MARK: CDVCallDelegate
     
-    func cdvCallDidChangeState(_ call: CDVCall) {
+    func cdvCallDidChangeState(call: CDVCall) {
         postCallsChangedNotification()
     }
     

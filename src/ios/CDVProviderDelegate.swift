@@ -11,12 +11,12 @@ import AVFoundation
 final class CDVProviderDelegate: NSObject, CXProviderDelegate {
     
     let callManager: CDVCallManager
-    fileprivate let provider: CXProvider
-    static let AudioNotification = Notification.Name("CDVCallKitAudioNotification")
+    private let provider: CXProvider
+    static let AudioNotification = "CDVCallKitAudioNotification"
     
     init(callManager: CDVCallManager) {
         self.callManager = callManager
-        provider = CXProvider(configuration: type(of: self).providerConfiguration)
+        provider = CXProvider(configuration: self.dynamicType.providerConfiguration)
         
         super.init()
         
@@ -25,20 +25,21 @@ final class CDVProviderDelegate: NSObject, CXProviderDelegate {
     
     /// The app's provider configuration, representing its CallKit capabilities
     static var providerConfiguration: CXProviderConfiguration {
-        let localizedName = Bundle.main.infoDictionary?["CFBundleName"] as? String
+        let localizedName = NSBundle.mainBundle().infoDictionary?["CFBundleName"] as? String
         let providerConfiguration = CXProviderConfiguration(localizedName: localizedName!)
         
         providerConfiguration.supportsVideo = true
         
         providerConfiguration.maximumCallsPerCallGroup = 1
         
-        providerConfiguration.supportedHandleTypes = [.generic]
+//        FIXME: find equivalent form for swift 2.3
+//        providerConfiguration.supportedHandleTypes = [.generic]
         
         if let iconMaskImage = UIImage(named: "IconMask") {
             providerConfiguration.iconTemplateImageData = UIImagePNGRepresentation(iconMaskImage)
         }
         
-        providerConfiguration.ringtoneSound = Bundle.main.path(forResource:"Ringtone", ofType: "caf")
+        providerConfiguration.ringtoneSound = NSBundle.mainBundle().pathForResource("Ringtone", ofType: "caf")
         
         return providerConfiguration
     }
@@ -46,10 +47,10 @@ final class CDVProviderDelegate: NSObject, CXProviderDelegate {
     // MARK: Incoming Calls
     
     /// Use CXProvider to report the incoming call to the system
-    func reportIncomingCall(_ uuid: UUID, handle: String, hasVideo: Bool = false,supportsGroup: Bool = false, supportsUngroup: Bool = false, supportsDTMF: Bool = false, supportsHold: Bool = false, completion: ((NSError?) -> Void)? = nil) {
+    func reportIncomingCall(uuid: NSUUID, handle: String, hasVideo: Bool = false,supportsGroup: Bool = false, supportsUngroup: Bool = false, supportsDTMF: Bool = false, supportsHold: Bool = false, completion: ((NSError?) -> Void)? = nil) {
         // Construct a CXCallUpdate describing the incoming call, including the caller.
         let update = CXCallUpdate()
-        update.remoteHandle = CXHandle(type: .generic, value: handle)
+        update.remoteHandle = CXHandle(type: .Generic, value: handle)
         update.hasVideo = hasVideo
         update.supportsGrouping = supportsGroup
         update.supportsUngrouping = supportsUngroup
@@ -57,7 +58,7 @@ final class CDVProviderDelegate: NSObject, CXProviderDelegate {
         update.supportsHolding = supportsHold
         
         // Report the incoming call to the system
-        provider.reportNewIncomingCall(with: uuid, update: update) { error in
+        provider.reportNewIncomingCallWithUUID(uuid, update: update, completion: { error in
             /*
              Only add incoming call to the app's list of calls if the call was allowed (i.e. there was no error)
              since calls may be "denied" for various legitimate reasons. See CXErrorCodeIncomingCallError.
@@ -69,13 +70,13 @@ final class CDVProviderDelegate: NSObject, CXProviderDelegate {
                 self.callManager.addCall(call)
             }
             
-            completion?(error as? NSError)
-        }
+            completion?(error as NSError!)
+        })
     }
     
     // MARK: CXProviderDelegate
     
-    func providerDidReset(_ provider: CXProvider) {
+    func providerDidReset(provider: CXProvider) {
         print("Provider did reset")
         
         self.postAudioNotification( "stopAudio" )
@@ -92,7 +93,7 @@ final class CDVProviderDelegate: NSObject, CXProviderDelegate {
         callManager.removeAllCalls()
     }
     
-    func provider(_ provider: CXProvider, perform action: CXStartCallAction) {
+    func provider(provider: CXProvider, performStartCallAction action: CXStartCallAction) {
         // Create & configure an instance of CDVCall, the app's model class representing the new outgoing call.
         let call = CDVCall(uuid: action.callUUID, isOutgoing: true)
         call.handle = action.handle.value
@@ -108,10 +109,10 @@ final class CDVProviderDelegate: NSObject, CXProviderDelegate {
          to reflect the updated state.
          */
         call.hasStartedConnectingDidChange = { [weak self] in
-            self?.provider.reportOutgoingCall(with: call.uuid, startedConnectingAt: call.connectingDate)
+            self?.provider.reportOutgoingCallWithUUID(call.uuid, startedConnectingAtDate: call.connectingDate)
         }
         call.hasConnectedDidChange = { [weak self] in
-            self?.provider.reportOutgoingCall(with: call.uuid, connectedAt: call.connectDate)
+            self?.provider.reportOutgoingCallWithUUID(call.uuid, connectedAtDate: call.connectDate)
         }
         
         // Trigger the call to be started via the underlying network service.
@@ -129,7 +130,7 @@ final class CDVProviderDelegate: NSObject, CXProviderDelegate {
         }
     }
     
-    func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
+    func provider(provider: CXProvider, performAnswerCallAction action: CXAnswerCallAction) {
         // Retrieve the CDVCall instance corresponding to the action's call UUID
         guard let call = callManager.callWithUUID(action.callUUID) else {
             action.fail()
@@ -149,7 +150,7 @@ final class CDVProviderDelegate: NSObject, CXProviderDelegate {
         action.fulfill()
     }
     
-    func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
+    func provider(provider: CXProvider, performEndCallAction action: CXEndCallAction) {
         // Retrieve the CDVCall instance corresponding to the action's call UUID
         guard let call = callManager.callWithUUID(action.callUUID) else {
             action.fail()
@@ -169,7 +170,7 @@ final class CDVProviderDelegate: NSObject, CXProviderDelegate {
         callManager.removeCall(call)
     }
     
-    func provider(_ provider: CXProvider, perform action: CXSetHeldCallAction) {
+    func provider(provider: CXProvider, performSetHeldCallAction action: CXSetHeldCallAction) {
         // Retrieve the CDVCall instance corresponding to the action's call UUID
         guard let call = callManager.callWithUUID(action.callUUID) else {
             action.fail()
@@ -177,7 +178,7 @@ final class CDVProviderDelegate: NSObject, CXProviderDelegate {
         }
         
         // Update the CDVCall's underlying hold state.
-        call.isOnHold = action.isOnHold
+        call.isOnHold = action.onHold
         
         // Stop or start audio in response to holding or unholding the call.
         if call.isOnHold {
@@ -190,22 +191,22 @@ final class CDVProviderDelegate: NSObject, CXProviderDelegate {
         action.fulfill()
     }
     
-    func provider(_ provider: CXProvider, timedOutPerforming action: CXAction) {
+    func provider(provider: CXProvider, timedOutPerformingAction action: CXAction) {
         print("Timed out \(#function)")
         
         // React to the action timeout if necessary, such as showing an error UI.
         
         action.fulfill();
     }
-    
-    func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
+
+    func provider(provider: CXProvider, didActivateAudioSession audioSession: AVAudioSession) {
         print("Received \(#function)")
         
         // Start call audio media, now that the audio session has been activated after having its priority boosted.
         self.postAudioNotification( "startAudio" )
     }
 
-    func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
+    func provider(provider: CXProvider, didDeactivateAudioSession audioSession: AVAudioSession) {
         print("Received \(#function)")
         
         /*
@@ -214,7 +215,7 @@ final class CDVProviderDelegate: NSObject, CXProviderDelegate {
          */
     }
 
-    private func postAudioNotification(_ message: String) {
-        NotificationCenter.default.post(name: type(of: self).AudioNotification, object: message)
+    private func postAudioNotification(message: String) {
+        NSNotificationCenter.defaultCenter().postNotificationName(self.dynamicType.AudioNotification, object: message)
     }
 }

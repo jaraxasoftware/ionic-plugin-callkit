@@ -6,11 +6,11 @@
 extension Array {
 
     mutating func removeFirst(where predicate: (Element) throws -> Bool) rethrows {
-        guard let index = try index(where: predicate) else {
+        guard let index = try indexOf(predicate) else {
             return
         }
 
-        remove(at: index)
+        removeAtIndex(index)
     }
 
 }
@@ -20,10 +20,10 @@ extension Array {
 	Extension of Date for utility API
  */
 
-extension Date {
-    func string(_ format: String) -> String {
-        let formatter = DateFormatter()
+extension NSDate {
+    func string(format: String) -> String {
+        let formatter = NSDateFormatter()
         formatter.dateFormat = format
-        return formatter.string(from: self)
+        return formatter.stringFromDate(self)
     }
 }

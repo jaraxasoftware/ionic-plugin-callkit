@@ -9,25 +9,25 @@ final class CDVCall {
     
     // MARK: Metadata Properties
     
-    let uuid: UUID
+    let uuid: NSUUID
     let isOutgoing: Bool
     var handle: String?
     
     // MARK: Call State Properties
     
-    var connectingDate: Date? {
+    var connectingDate: NSDate? {
         didSet {
             stateDidChange?()
             hasStartedConnectingDidChange?()
         }
     }
-    var connectDate: Date? {
+    var connectDate: NSDate? {
         didSet {
             stateDidChange?()
             hasConnectedDidChange?()
         }
     }
-    var endDate: Date? {
+    var endDate: NSDate? {
         didSet {
             stateDidChange?()
             hasEndedDidChange?()
@@ -53,7 +53,7 @@ final class CDVCall {
             return connectingDate != nil
         }
         set {
-            connectingDate = newValue ? Date() : nil
+            connectingDate = newValue ? NSDate() : nil
         }
     }
     var hasConnected: Bool {
@@ -61,7 +61,7 @@ final class CDVCall {
             return connectDate != nil
         }
         set {
-            connectDate = newValue ? Date() : nil
+            connectDate = newValue ? NSDate() : nil
         }
     }
     var hasEnded: Bool {
@@ -69,29 +69,29 @@ final class CDVCall {
             return endDate != nil
         }
         set {
-            endDate = newValue ? Date() : nil
+            endDate = newValue ? NSDate() : nil
         }
     }
-    var duration: TimeInterval {
+    var duration: NSTimeInterval {
         guard let connectDate = connectDate else {
             return 0
         }
         
-        return Date().timeIntervalSince(connectDate)
+        return NSDate().timeIntervalSinceDate(connectDate)
     }
     
     // MARK: Initialization
     
-    init(uuid: UUID, isOutgoing: Bool = false) {
+    init(uuid: NSUUID, isOutgoing: Bool = false) {
         self.uuid = uuid
         self.isOutgoing = isOutgoing
     }
     
     // MARK: Actions
     
-    func startCDVCall(_ completion: ((_ success: Bool) -> Void)?) {
+    func startCDVCall(completion: ((success: Bool) -> Void)?) {
         // Simulate the call starting successfully
-        completion?(true)
+        completion?(success: true)
         
         hasStartedConnecting = true
     }
