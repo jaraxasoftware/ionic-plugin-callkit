@@ -68,7 +68,7 @@
       <source-file src="src/ios/CDVCall.swift" />
       <source-file src="src/ios/CDVCallManager.swift" />
 
-		<framework src="CallKit.framework" />
+		<framework src="CallKit.framework" weak="true" />
   </platform>
 
     <!-- android -->
