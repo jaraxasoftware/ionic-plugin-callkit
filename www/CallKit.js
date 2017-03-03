@@ -20,6 +20,14 @@ CallKit.prototype.register = function(callChanged,audioSystem) {
 	};
 
 	exec(successCallback, errorCallback, 'CallKit', 'register' );
+	return true;
+};
+
+CallKit.prototype.unregister = function() {
+	var errorCallback = function() {};
+	var successCallback = function() {};
+
+	exec(successCallback, errorCallback, 'CallKit', 'unregister', [] );
 };
 
 CallKit.prototype.reportIncomingCall = function(name,params,onSuccess) {

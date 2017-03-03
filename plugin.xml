@@ -48,8 +48,9 @@
             </feature>
         </config-file>
 
-        <js-module src="src/browser/callkit.js" name="VoiCallKitpPush">
-            <runs />
+        <js-module src="src/browser/callkit.js" name="BrowserCallKit">
+            <!-- <runs /> -->
+            <clobbers target="CallKit" />
         </js-module>
     </platform>
 

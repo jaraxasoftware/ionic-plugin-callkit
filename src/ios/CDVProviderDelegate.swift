@@ -44,6 +44,10 @@ final class CDVProviderDelegate: NSObject, CXProviderDelegate {
         return providerConfiguration
     }
     
+    func detach() {
+        provider.invalidate();
+    }
+    
     // MARK: Incoming Calls
     
     /// Use CXProvider to report the incoming call to the system

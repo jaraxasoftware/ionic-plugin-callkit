@@ -47,6 +47,16 @@
         });
     }
 
+    func unregister(command:CDVInvokedUrlCommand) {
+        let pluginResult = CDVPluginResult(
+            status : CDVCommandStatus_OK
+        )
+        NSNotificationCenter.defaultCenter().removeObserver(self)
+        providerDelegate?.detach();
+        pluginResult?.setKeepCallbackAsBool(false)
+        self.commandDelegate!.sendPluginResult(pluginResult, callbackId: self.callbackId);
+    }
+    
     deinit {
         NSNotificationCenter.defaultCenter().removeObserver(self)
     }
