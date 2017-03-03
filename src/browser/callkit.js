@@ -18,12 +18,20 @@
  *
  */
 
-function notSupported() {
+/*function notSupported() {
     console.log('CallKit is not supported');
     return false;
 }
 
 module.exports = {
 	register:notSupported
-};
+};*/
 
+var CallKit = function() {};
+
+CallKit.prototype.register = function() {
+	console.log('CallKit is not supported');
+	return false;
+}
+
+module.exports = CallKit;
